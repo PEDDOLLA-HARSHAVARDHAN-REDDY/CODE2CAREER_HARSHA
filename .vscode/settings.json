@@ -1,0 +1,7 @@
+{
+    "editor.fontSize": 16,
+    "files.associations": {
+        "server.h": "c",
+        "client.h": "c"
+    }
+}
