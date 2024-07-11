@@ -7,7 +7,7 @@ void handle_rrq(int sockfd, struct sockaddr_in *client_addr, socklen_t len, cons
     FILE *fp = fopen(filename, "r");
     if (fp == NULL)
     {
-        send_error(sockfd, client_addr, len, 1,"File not found");
+        send_error(sockfd, client_addr, len, 1, "File not found");
         return;
     }
     int block = 1, n;
@@ -23,7 +23,7 @@ void handle_rrq(int sockfd, struct sockaddr_in *client_addr, socklen_t len, cons
         buffer[3] =
             block & 0xFF;
         int attempts = 0;
-        while (attempts < 5)
+        while (attempts < MAX_RETRIES)
         {
             sendto(sockfd, buffer, n + 4, 0, (struct sockaddr *)client_addr, len);
             // Wait for acknowledgment
@@ -36,9 +36,9 @@ void handle_rrq(int sockfd, struct sockaddr_in *client_addr, socklen_t len, cons
             if (s > 0)
             {
                 char ack_buffer[BUFFER_SIZE];
-                recvfrom(sockfd, ack_buffer,
-                         BUFFER_SIZE, 0, (struct sockaddr *)client_addr,
-                         &len);
+                int n = recvfrom(sockfd, ack_buffer,
+                                 BUFFER_SIZE, 0, (struct sockaddr *)client_addr,
+                                 &len);
                 if (ack_buffer[1] == ACK &&
                     (ack_buffer[2] << 8 | ack_buffer[3]) == block)
                 {
@@ -51,7 +51,7 @@ void handle_rrq(int sockfd, struct sockaddr_in *client_addr, socklen_t len, cons
                 attempts++;
             }
         }
-        if (attempts == 5)
+        if (attempts == MAX_RETRIES)
         {
             printf("Failed to receive ACK for block %d, giving up\n", block);
             fclose(fp);
@@ -66,6 +66,11 @@ void handle_rrq(int sockfd, struct sockaddr_in *client_addr, socklen_t len, cons
 void handle_wrq(int sockfd, struct sockaddr_in *client_addr, socklen_t len, const char *filename)
 {
     int n;
+    struct timeval timeout;
+    timeout.tv_sec = INITIAL_TIMEOUT;
+    timeout.tv_usec = 0;
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,
+               &timeout, sizeof(timeout));
 
     // Check if file exists to prevent overwriting
     if (access(filename, F_OK) != -1)
@@ -81,9 +86,11 @@ void handle_wrq(int sockfd, struct sockaddr_in *client_addr, socklen_t len, cons
         return;
     }
     int block = 0;
-    char buffer[BUFFER_SIZE];
+    unsigned char buffer[BUFFER_SIZE];
     // Send ACK for block 0
     send_ack(sockfd, client_addr, len, block);
+
+    int failCount=0;
     do
     {
         // Receive data block
@@ -91,10 +98,16 @@ void handle_wrq(int sockfd, struct sockaddr_in *client_addr, socklen_t len, cons
                      0, (struct sockaddr *)client_addr, &len);
         if (n < 0)
         {
-            perror("recvfrom failed");
+            failCount++;
+            if(failCount==MAX_RETRIES){
+            perror("recvfrom failed, tried multiple times");
             fclose(fp);
             return;
+            }
+        }else{
+            failCount=0;
         }
+        printf("%d\n",block);
         if (buffer[1] == DATA && (buffer[2] << 8 | buffer[3]) == block + 1)
         {
             fwrite(buffer + 4, 1, n - 4, fp); // Write data to file
@@ -103,5 +116,9 @@ void handle_wrq(int sockfd, struct sockaddr_in *client_addr, socklen_t len, cons
                      block); // Send ACK for this block
         }
     } while (buffer[1] == DATA && (n - 4) == BLOCK_SIZE);
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,
+               &timeout, sizeof(timeout));
     fclose(fp);
 }

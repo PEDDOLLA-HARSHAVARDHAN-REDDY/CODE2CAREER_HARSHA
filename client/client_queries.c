@@ -96,12 +96,12 @@ void handle_wrq(int sockfd, struct sockaddr_in *server_addr, socklen_t len, cons
                            NULL, NULL, &tv);
             if (s > 0)
             {
-                char ack_buffer[BUFFER_SIZE];
+                unsigned char ack_buffer[BUFFER_SIZE];
                 recvfrom(sockfd, ack_buffer,
                          BUFFER_SIZE, 0, (struct sockaddr *)server_addr,
                          &len);
                 if (ack_buffer[1] == ACK &&
-                    (ack_buffer[2] << 8 | ack_buffer[3]) == block)
+                    ((ack_buffer[2] << 8) | ack_buffer[3]) == block)
                 {
                     break; // Correct ACK received
                 }

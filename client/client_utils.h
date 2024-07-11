@@ -1,3 +1,4 @@
+#include"client.h"
 void send_rrq(char *buf, int sockfd, const char *filename, const char *mode, struct sockaddr_in *servaddrptr);
 void send_wrq(char *buf, int sockfd, const char *filename, const char *mode, struct sockaddr_in *servaddrptr);
 void handle_wrq(int sockfd, struct sockaddr_in *server_addr, socklen_t len,const char *filename);

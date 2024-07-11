@@ -34,7 +34,7 @@ int main()
                          0, (struct sockaddr *)&cliaddr, &len);
         if (n < 0)
         {
-            perror("recvfrom failed");
+            perror("recvfrom timed out or failed");
             continue;
         }
 
@@ -46,7 +46,7 @@ int main()
         case RRQ:
         {
             printf("RRQ received. Processing...\n");
-            handle_rrq(sockfd, &cliaddr, len,filename);
+            handle_rrq(sockfd, &cliaddr, len, filename);
             break;
         }
         case WRQ:

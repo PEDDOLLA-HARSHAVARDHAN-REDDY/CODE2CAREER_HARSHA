@@ -16,3 +16,5 @@
 #define ACK 4
 #define ERROR 5
 #define WRQ 2
+#define INITIAL_TIMEOUT 2 // Initial timeout in seconds
+#define MAX_RETRIES 5
